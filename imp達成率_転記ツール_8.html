@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>imp達成率 転記ツール</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif;background:#f5f5f5;color:#1a1a1a;min-height:100vh;padding:0 0 2rem;}
+.container{max-width:1100px;margin:0 auto;padding:0 1rem;}
+.header{background:#1a1a1a;color:#fff;padding:1rem 1.5rem;margin-bottom:1.5rem;}
+.header h1{font-size:18px;font-weight:600;color:#fff;}
+.subtitle{font-size:13px;color:#666;margin-bottom:1.5rem;line-height:1.8;}
+.card{background:#fff;border-radius:12px;border:1px solid #e5e5e5;padding:1.5rem;margin-bottom:1.25rem;}
+.lbl{font-size:11px;color:#888;font-weight:600;letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px;}
+.drop{border:1.5px dashed #ccc;border-radius:10px;padding:2.5rem 1.25rem;text-align:center;cursor:pointer;background:#fafafa;transition:background .15s,border-color .15s;}
+.drop:hover,.drop.dragover{background:#e8f4ff;border-color:#4a90d9;}
+.drop input{display:none;}
+.drop .folder-icon{width:52px;height:52px;margin:0 auto 12px;opacity:.4;}
+.drop .dl{font-size:14px;font-weight:500;color:#333;}
+.drop .ds{font-size:12px;color:#999;margin-top:6px;}
+.ok-badge{display:inline-block;background:#e6f7ee;color:#1a8a4a;font-size:12px;padding:3px 10px;border-radius:6px;margin-top:6px;font-weight:500;}
+.week-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:6px;margin-bottom:1rem;}
+.wk{background:#f5f5f5;border:1px solid #e0e0e0;border-radius:8px;padding:6px 8px;font-size:12px;cursor:pointer;text-align:center;user-select:none;transition:background .12s,border-color .12s;}
+.wk:hover{background:#e8f0fe;border-color:#4a90d9;}
+.wk.sel{background:#ddeeff;color:#1a5fa8;border-color:#4a90d9;font-weight:500;}
+.sel-ctrl{display:flex;gap:8px;margin-bottom:10px;}
+.sel-ctrl button{font-size:12px;padding:4px 12px;background:#fff;border:1px solid #ddd;border-radius:6px;cursor:pointer;color:#555;}
+.sel-ctrl button:hover{background:#f0f0f0;}
+.btn{border:none;border-radius:8px;padding:9px 20px;font-size:13px;cursor:pointer;font-weight:500;}
+.btn-p{background:#1a1a1a;color:#fff;}
+.btn-p:hover{opacity:.82;}
+.btn-dl{background:#1a6fcc;color:#fff;}
+.btn-dl:hover{opacity:.85;}
+.actions{display:flex;gap:10px;align-items:center;}
+.divider{border:none;border-top:1px solid #eee;margin:1.25rem 0;}
+.sec-block{margin-bottom:1.5rem;}
+.sec-top{display:flex;align-items:center;gap:12px;margin-bottom:0;}
+.sec-header{font-size:12px;font-weight:600;padding:6px 14px;border-radius:8px 8px 0 0;color:#fff;display:inline-block;}
+.sec-header.g{background:#f5a623;}
+.sec-header.a2{background:#4a90d9;}
+.sec-header.a3{background:#4caf72;}
+.btn-copy{background:#fff;border:1px solid #ddd;border-radius:8px;padding:5px 13px;font-size:12px;cursor:pointer;font-weight:500;color:#444;display:inline-flex;align-items:center;gap:5px;transition:background .12s,border-color .12s;}
+.btn-copy:hover{background:#f5f5f5;border-color:#aaa;}
+.btn-copy.copied{background:#e6f7ee;border-color:#4caf72;color:#1a8a4a;}
+.copy-hint{font-size:11px;color:#aaa;}
+.tbl-wrap{overflow-x:auto;border:1px solid #e0e0e0;border-radius:0 8px 8px 8px;}
+table{border-collapse:collapse;font-size:12px;white-space:nowrap;width:100%;}
+th{background:#f9f9f9;color:#666;font-weight:600;padding:7px 12px;text-align:center;border-bottom:1px solid #e5e5e5;border-right:1px solid #e5e5e5;position:sticky;top:0;z-index:2;}
+th.row-h{text-align:left;position:sticky;left:0;z-index:3;min-width:76px;background:#f9f9f9;}
+td{padding:6px 12px;border-bottom:1px solid #f0f0f0;border-right:1px solid #f0f0f0;text-align:center;}
+td.row-h{text-align:left;font-weight:500;background:#fafafa;position:sticky;left:0;z-index:1;min-width:76px;}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:#f8fbff;}
+tr:hover td.row-h{background:#f0f5ff;}
+.val{color:#1a1a1a;}
+.dash{color:#bbb;}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>imp達成率 転記ツール</h1>
+</div>
+<div class="container">
+  <p class="subtitle">① TP_imp進捗シート.xlsx をアップロード<br>② 転記する週を選択して達成率の平均値を抽出<br>③ コピーボタンを押してimp達成率シートに貼り付け</p>
+
+  <div class="card">
+    <div class="lbl">ソースファイルを選択</div>
+    <div class="drop" id="dropZone" onclick="document.getElementById('srcIn').click()">
+      <input type="file" id="srcIn" accept=".xlsx">
+      <svg class="folder-icon" viewBox="0 0 52 44" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2 8C2 5.79 3.79 4 6 4H20L26 10H46C48.21 10 50 11.79 50 14V38C50 40.21 48.21 42 46 42H6C3.79 42 2 40.21 2 38V8Z" fill="#888"/><path d="M2 16H50V38C50 40.21 48.21 42 46 42H6C3.79 42 2 40.21 2 38V16Z" fill="#aaa"/></svg>
+      <div class="dl">ここにファイルをドラッグ＆ドロップ</div>
+      <div class="ds">または クリックしてファイルを選択</div>
+      <div id="srcBadge"></div>
+    </div>
+  </div>
+
+  <div class="card" id="weekCard" style="display:none">
+    <div class="lbl">転記する週を選択</div>
+    <div class="sel-ctrl">
+      <button onclick="selAll()">すべて選択</button>
+      <button onclick="selNone()">すべて解除</button>
+    </div>
+    <div class="week-grid" id="weekGrid"></div>
+    <div class="divider"></div>
+    <div class="actions">
+      <button class="btn btn-p" onclick="runExtract()">データを抽出</button>
+      <button class="btn btn-dl" id="dlBtn" style="display:none" onclick="doDownload()">Excelをダウンロード</button>
+    </div>
+  </div>
+
+  <div id="previewCard" style="display:none">
+    <div class="card">
+      <div class="lbl">抽出プレビュー</div>
+
+      <div class="sec-block">
+        <div class="sec-top">
+          <div class="sec-header g">全国</div>
+          <button class="btn-copy" id="copyG" onclick="copySection('G')">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="5" width="9" height="9" rx="1.5"/><path d="M3 11V3a1 1 0 011-1h8"/></svg>
+            コピー
+          </button>
+          <span class="copy-hint">スプレッドシートの貼り付け先セルを選んで Ctrl+V / ⌘V</span>
+        </div>
+        <div class="tbl-wrap"><table id="tblG"></table></div>
+      </div>
+
+      <div class="sec-block">
+        <div class="sec-top">
+          <div class="sec-header a2">エリア指定　2nd Ads</div>
+          <button class="btn-copy" id="copyA2" onclick="copySection('A2')">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="5" width="9" height="9" rx="1.5"/><path d="M3 11V3a1 1 0 011-1h8"/></svg>
+            コピー
+          </button>
+          <span class="copy-hint">スプレッドシートの貼り付け先セルを選んで Ctrl+V / ⌘V</span>
+        </div>
+        <div class="tbl-wrap"><table id="tblA2"></table></div>
+      </div>
+
+      <div class="sec-block">
+        <div class="sec-top">
+          <div class="sec-header a3">エリア指定　3rd Ads</div>
+          <button class="btn-copy" id="copyA3" onclick="copySection('A3')">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="5" width="9" height="9" rx="1.5"/><path d="M3 11V3a1 1 0 011-1h8"/></svg>
+            コピー
+          </button>
+          <span class="copy-hint">スプレッドシートの貼り付け先セルを選んで Ctrl+V / ⌘V</span>
+        </div>
+        <div class="tbl-wrap"><table id="tblA3"></table></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+let srcWB=null,allWeeks=[],selectedWeeks=new Set(),extractedData=null;
+const SKIP=['過去分','2026テンプレ','画面OFF率・再生完了率','エリア限定想定imp','画面OFF率_集計','Menu'];
+const GLOBAL_COLS=['1st Ads','2nd Ads+','2nd Ads','3rd Ads','Targeting Ads','2nd Contents','3rd Contents','シートベルト着用アナウンス','Boarding Ads'];
+const AREA2_COLS=['東京','関東','関西','東海','九州','北海道','広島','沖縄'];
+const AREA3_COLS=['東京','関東','関西','東海','九州','北海道','広島','沖縄'];
+
+function normGlobal(s){
+  s=s.trim();
+  if(/^1st Ads/i.test(s)) return '1st Ads';
+  if(/^2nd Ads\s*\+/i.test(s)) return '2nd Ads+';
+  if(/^2nd Ads$/.test(s.replace(/\s*\[HALF\]/i,'').trim())) return '2nd Ads';
+  if(/^3rd Ads$/.test(s.replace(/\s*\[HALF\]/i,'').trim())) return '3rd Ads';
+  if(/^Targeting Ads/i.test(s)) return 'Targeting Ads';
+  if(/^2nd Contents/i.test(s)) return '2nd Contents';
+  if(/^3rd Contents/i.test(s)) return '3rd Contents';
+  if(/^シートベルト/i.test(s)) return 'シートベルト着用アナウンス';
+  if(/^Boarding Ads/i.test(s)) return 'Boarding Ads';
+  return null;
+}
+function normArea2(s){
+  const n=s.replace(/\s*\[HALF\]/i,'').trim();
+  const m=n.match(/^2nd Ads\s+(東京|関東|関西|東海|九州|北海道|広島|沖縄)$/);
+  return m?m[1]:null;
+}
+function normArea3(s){
+  const n=s.replace(/\s*\[HALF\]/i,'').trim();
+  const m=n.match(/^3rd Ads\s+(東京|関東|関西|東海|九州|北海道|広島|沖縄)$/);
+  return m?m[1]:null;
+}
+function parseDate(sn){
+  const rest=sn.replace(/^2026/,'');
+  let m,d;
+  if(rest.length===2){m=+rest[0];d=+rest[1];}
+  else if(rest.length===3){m=+rest[0];d=+rest.slice(1);}
+  else if(rest.length===4){m=+rest.slice(0,2);d=+rest.slice(2);}
+  else return null;
+  return{m,d,label:`${m}/${d}週`,key:sn};
+}
+function getAvg(sheet){
+  const rows=XLSX.utils.sheet_to_json(sheet,{header:1,defval:null});
+  const hdr=rows[1];if(!hdr)return null;
+  const sc=hdr.indexOf('広告枠'),rc=hdr.indexOf('達成率');
+  if(sc<0||rc<0)return null;
+  const acc={g:{},a2:{},a3:{}};
+  for(let i=2;i<rows.length;i++){
+    const row=rows[i];if(!row||!row[sc])continue;
+    const slot=row[sc].toString().trim();
+    const v=parseFloat(row[rc]);if(isNaN(v))continue;
+    const g=normGlobal(slot);if(g){if(!acc.g[g])acc.g[g]=[];acc.g[g].push(v);}
+    const a2=normArea2(slot);if(a2){if(!acc.a2[a2])acc.a2[a2]=[];acc.a2[a2].push(v);}
+    const a3=normArea3(slot);if(a3){if(!acc.a3[a3])acc.a3[a3]=[];acc.a3[a3].push(v);}
+  }
+  const rawAvg=arr=>arr&&arr.length?arr.reduce((a,b)=>a+b,0)/arr.length:null;
+  const r={g:{},a2:{},a3:{}};
+  GLOBAL_COLS.forEach(k=>r.g[k]=rawAvg(acc.g[k]));
+  AREA2_COLS.forEach(k=>r.a2[k]=rawAvg(acc.a2[k]));
+  AREA3_COLS.forEach(k=>r.a3[k]=rawAvg(acc.a3[k]));
+  return r;
+}
+function pct(v){return v===null||v===undefined?'-':Math.round(v*100)+'%';}
+function fmtXL(v){return v===null||v===undefined?'-':Math.round(v*100)/100;}
+
+// タブ区切りテキスト（週ラベルなし・%テキスト）でスプレッドシートにそのまま貼れる形式
+function buildTSV(cols, dataFn){
+  return extractedData.weeks.map(w =>
+    cols.map(c => {
+      const v = dataFn(extractedData.rows[w.key], c);
+      return v !== null ? pct(v) : '-';
+    }).join('\t')
+  ).join('\n');
+}
+
+function copySection(sec){
+  if(!extractedData) return;
+  let tsv;
+  if(sec==='G')  tsv=buildTSV(GLOBAL_COLS,(d,c)=>d.g[c]);
+  if(sec==='A2') tsv=buildTSV(AREA2_COLS, (d,c)=>d.a2[c]);
+  if(sec==='A3') tsv=buildTSV(AREA3_COLS, (d,c)=>d.a3[c]);
+
+  navigator.clipboard.writeText(tsv).then(()=>{
+    const btn=document.getElementById('copy'+sec);
+    const orig=btn.innerHTML;
+    btn.classList.add('copied');
+    btn.innerHTML=`<svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="2,8 6,12 14,4"/></svg>コピー完了`;
+    setTimeout(()=>{btn.classList.remove('copied');btn.innerHTML=orig;},2000);
+  }).catch(()=>alert('コピーに失敗しました。ブラウザの設定をご確認ください。'));
+}
+
+function loadFile(f){
+  if(!f||!f.name.endsWith('.xlsx'))return;
+  const r=new FileReader();
+  r.onload=ev=>{
+    srcWB=XLSX.read(new Uint8Array(ev.target.result),{type:'array',raw:false});
+    document.getElementById('srcBadge').innerHTML=`<span class="ok-badge">✓ ${f.name}</span>`;
+    buildWeekSelector();
+  };
+  r.readAsArrayBuffer(f);
+}
+document.getElementById('srcIn').addEventListener('change',e=>{
+  loadFile(e.target.files[0]);
+});
+const dz=document.getElementById('dropZone');
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('dragover');});
+dz.addEventListener('dragleave',e=>{dz.classList.remove('dragover');});
+dz.addEventListener('drop',e=>{
+  e.preventDefault();
+  dz.classList.remove('dragover');
+  const f=e.dataTransfer.files[0];
+  loadFile(f);
+});
+
+function buildWeekSelector(){
+  const sheets=srcWB.SheetNames.filter(n=>!SKIP.includes(n)&&/^2026/.test(n));
+  allWeeks=sheets.map(parseDate).filter(Boolean);
+  selectedWeeks=new Set();
+  renderWeekGrid();
+  document.getElementById('weekCard').style.display='block';
+}
+function renderWeekGrid(){
+  document.getElementById('weekGrid').innerHTML=allWeeks.map(w=>
+    `<div class="wk${selectedWeeks.has(w.key)?' sel':''}" onclick="toggleWeek('${w.key}')">${w.label}</div>`
+  ).join('');
+}
+function toggleWeek(k){selectedWeeks.has(k)?selectedWeeks.delete(k):selectedWeeks.add(k);renderWeekGrid();}
+function selAll(){allWeeks.forEach(w=>selectedWeeks.add(w.key));renderWeekGrid();}
+function selNone(){selectedWeeks.clear();renderWeekGrid();}
+
+function buildTable(tbId,cols,dataFn,weeks){
+  let html=`<thead><tr><th class="row-h">週</th>${cols.map(c=>`<th>${c}</th>`).join('')}</tr></thead><tbody>`;
+  weeks.forEach(w=>{
+    html+=`<tr><td class="row-h">${w.label}</td>`;
+    cols.forEach(c=>{
+      const v=dataFn(extractedData.rows[w.key],c);
+      html+=`<td class="${v!==null?'val':'dash'}">${pct(v)}</td>`;
+    });
+    html+=`</tr>`;
+  });
+  html+=`</tbody>`;
+  document.getElementById(tbId).innerHTML=html;
+}
+
+function runExtract(){
+  const sel=allWeeks.filter(w=>selectedWeeks.has(w.key));
+  if(!sel.length){alert('週を選択してください');return;}
+  extractedData={weeks:sel,rows:{}};
+  sel.forEach(w=>{
+    const r=getAvg(srcWB.Sheets[w.key]);
+    extractedData.rows[w.key]=r||{g:{},a2:{},a3:{}};
+  });
+  buildTable('tblG',  GLOBAL_COLS,(d,c)=>d.g[c], sel);
+  buildTable('tblA2', AREA2_COLS, (d,c)=>d.a2[c],sel);
+  buildTable('tblA3', AREA3_COLS, (d,c)=>d.a3[c],sel);
+  document.getElementById('previewCard').style.display='block';
+  document.getElementById('dlBtn').style.display='inline-block';
+  document.getElementById('previewCard').scrollIntoView({behavior:'smooth'});
+}
+
+function doDownload(){
+  if(!extractedData)return;
+  const{weeks}=extractedData;
+  const wb=XLSX.utils.book_new();
+  function makeRows(cols,dataFn){
+    return[['週',...cols],...weeks.map(w=>[w.label,...cols.map(c=>{const v=dataFn(extractedData.rows[w.key],c);return v!==null?fmtXL(v):'-';})])];
+  }
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(makeRows(GLOBAL_COLS,(d,c)=>d.g[c])),'全国');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(makeRows(AREA2_COLS,(d,c)=>d.a2[c])),'エリア2nd Ads');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(makeRows(AREA3_COLS,(d,c)=>d.a3[c])),'エリア3rd Ads');
+  try{
+    const buf=XLSX.write(wb,{bookType:'xlsx',type:'array'});
+    const blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;a.download='imp達成率_転記用.xlsx';
+    document.body.appendChild(a);a.click();
+    setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},1000);
+  }catch(e){alert('ダウンロードエラー: '+e.message);}
+}
+</script>
+</body>
+</html>
